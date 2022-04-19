@@ -1,5 +1,8 @@
 from django.shortcuts import get_object_or_404
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
 
@@ -13,68 +16,39 @@ class ArticleListCreate(generics.ListCreateAPIView):
     serializer_class = ArticleSerializer
 
 
-class CommentList(generics.ListAPIView):
-    """The list of comments to the article up to the third level of nesting"""
+user_response = openapi.Response('response description', CommentListSerializer)
 
-    queryset = Comment.objects.all()
-    serializer_class = CommentListSerializer
 
-    def get(self, request, *args, **kwargs):
-        qs = Comment.objects.filter(article__id=kwargs['pk'], level__lte=3)
-        queryset = self.filter_queryset(qs)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
+@swagger_auto_schema(method='get', responses={200: user_response})
+@swagger_auto_schema(method='post', request_body=CommentForArticleSerializer)
+@api_view(['GET', 'POST'])
+def comment_for_article(request, article_id):
+    if request.method == 'GET':
+        comments = Comment.objects.filter(article__id=article_id, level__lte=3)
+        serializer = CommentListSerializer(comments, many=True)
         return Response(serializer.data)
 
-
-class CommentForCommentList(generics.ListAPIView):
-    """The list of comments to the comment"""
-
-    queryset = Comment.objects.all()
-    serializer_class = CommentListSerializer
-
-    def get(self, request, *args, **kwargs):
-        comment = get_object_or_404(Comment, pk=kwargs['pk'])
-        qs = comment.get_descendants(include_self=False)
-        queryset = self.filter_queryset(qs)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-
-class CommentForArticleCreate(generics.CreateAPIView):
-    """Create comment for article"""
-
-    queryset = Comment.objects.all()
-    serializer_class = CommentForArticleSerializer
-
-    def post(self, request, *args, **kwargs):
+    elif request.method == 'POST':
         serializer = CommentForArticleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         Comment.objects.create(
-            article=get_object_or_404(Article, pk=kwargs['pk']),
+            article=get_object_or_404(Article, pk=article_id),
             text=serializer.validated_data['text']
         )
         return Response(serializer.data, status=HTTP_201_CREATED)
 
 
-class CommentForCommentCreate(generics.CreateAPIView):
-    """Create comment for comment"""
+@swagger_auto_schema(method='get', responses={200: user_response})
+@swagger_auto_schema(method='post', request_body=CommentForCommentSerializer)
+@api_view(['GET', 'POST'])
+def comment_for_comment(request, comment_id):
+    if request.method == 'GET':
+        parent = get_object_or_404(Comment, pk=comment_id)
+        comments = parent.get_descendants(include_self=False)
+        serializer = CommentListSerializer(comments, many=True)
+        return Response(serializer.data)
 
-    queryset = Comment.objects.all()
-    serializer_class = CommentForCommentSerializer
-
-    def post(self, request, *args, **kwargs):
+    elif request.method == 'POST':
         serializer = CommentForCommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data['parent']
