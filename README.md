@@ -32,4 +32,6 @@ python manage.py runserver
 $ docker-compose up -d
 ```
 
-После запуска сервера будет доступна страница со всеми методами API [http://127.0.0.1:8080/api/swagger/](http://127.0.0.1:8080/api/swagger/)
+После запуска сервера будут доступны страницы со всеми методами API 
+- [http://127.0.0.1:8080/api/swagger/](http://127.0.0.1:8080/api/swagger/)
+- [http://127.0.0.1:8080/api/redoc/](http://127.0.0.1:8080/api/redoc/)
