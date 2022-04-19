@@ -1,0 +1,25 @@
+version: '3'
+services:
+  pgdb:
+    image: 'postgres:12.0-alpine'
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ../volumes/pgdb:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    restart: always
+
+  web:
+    build: .
+    restart: always
+    container_name: 'app_django'
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@pgdb:5432/postgres
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - '8080:8000'
