@@ -44,9 +44,14 @@ def comment_for_article(request, article_id):
 def comment_for_comment(request, comment_id):
     if request.method == 'GET':
         parent = get_object_or_404(Comment, pk=comment_id)
-        comments = parent.get_descendants(include_self=False)
-        serializer = CommentListSerializer(comments, many=True)
-        return Response(serializer.data)
+        comments = parent.get_descendants(include_self=False).order_by('parent').select_related('parent')
+        comment_tree = []
+        for comment in comments:
+            if parent == comment.parent:
+                comment_tree.append(CommentListSerializer(comment).data)
+                get_comments_tree(comment_tree, comments)
+
+        return Response(comment_tree)
 
     elif request.method == 'POST':
         serializer = CommentForCommentSerializer(data=request.data)
@@ -58,3 +63,12 @@ def comment_for_comment(request, comment_id):
             text=serializer.validated_data['text']
         )
         return Response(serializer.data, status=HTTP_201_CREATED)
+
+
+def get_comments_tree(comment_tree, comments):
+    for comment in comment_tree:
+        child_comments = list(filter(lambda item: item.parent.id == comment['id'], comments))
+        comment['children'] = CommentListSerializer(child_comments, many=True).data
+        if child_comments:
+            get_comments_tree(comment['children'], comments)
+        return
